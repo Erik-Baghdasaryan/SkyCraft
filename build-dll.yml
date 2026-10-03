@@ -1,0 +1,43 @@
+name: Build SkyCraft.dll
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ["skse/**", ".github/workflows/build-dll.yml"]
+
+jobs:
+  build:
+    runs-on: windows-2025-vs2026
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Get vcpkg
+        shell: cmd
+        run: |
+          git clone https://github.com/microsoft/vcpkg .tools\vcpkg
+          .tools\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+
+      - name: Configure
+        working-directory: skse
+        shell: cmd
+        run: cmake --preset default
+
+      - name: Build
+        working-directory: skse
+        shell: cmd
+        run: cmake --build --preset release
+
+      - name: Collect output
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out/SKSE/Plugins | Out-Null
+          $dll = Get-ChildItem skse/build -Recurse -Filter SkyCraft.dll | Select-Object -First 1
+          Copy-Item $dll.FullName out/SKSE/Plugins/SkyCraft.dll
+          Copy-Item skse/SkyCraft.ini out/SKSE/Plugins/SkyCraft.ini
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SkyCraft-menu-hotkeys
+          path: out
